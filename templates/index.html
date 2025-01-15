@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BillTracker</title>
+</head>
+<body>
+    <h1>BillTracker</h1>
+    <form action="/add_transaction" method="post" enctype="multipart/form-data">
+        <label>Date:</label>
+        <input type="date" name="date" required><br>
+        <label>Amount:</label>
+        <input type="number" name="amount" step="0.01" required><br>
+        <label>Description:</label>
+        <input type="text" name="description" required><br>
+        <label>Attach Bill (optional):</label>
+        <input type="file" name="image"><br>
+        <button type="submit">Add Transaction</button>
+    </form>
+
+    <a href="/export">Export to Excel</a>
+</body>
+</html>
