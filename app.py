@@ -8,11 +8,11 @@ import os
 import re
 from datetime import datetime
 
-
+# Configure Tesseract OCR executable path
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
+# Helper function to parse date from text
 def parse_date_from_text(text):
-    # Try to find dates in formats like DD/MM/YYYY or MM/DD/YYYY
     date_patterns = [r'\d{1,2}/\d{1,2}/\d{4}', r'\d{4}-\d{1,2}-\d{1,2}']
     for pattern in date_patterns:
         match = re.search(pattern, text)
@@ -27,14 +27,20 @@ def parse_date_from_text(text):
                 pass
     return None
 
+# Helper function to parse amount from text
 def parse_amount_from_text(text):
-    import re
-    match = re.search(r'\d+\.\d{2}', text)
-    return float(match.group()) if match else None
+    match = re.search(r'\d{1,3}(?:,\d{3})*(?:\.\d{2})?', text)  # Allow commas in numbers
+    return float(match.group().replace(',', '')) if match else None
 
+# Helper function to parse description from text
 def parse_description_from_text(text):
-    return text.splitlines()[0] if text else None
+    lines = text.splitlines()
+    for line in lines:
+        if len(line.strip()) > 5:  # Use a heuristic to find a meaningful description
+            return line.strip()
+    return "No description found"
 
+# Flask app initialization
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -54,60 +60,54 @@ def init_db():
         """)
 init_db()
 
-# Homepage
+# Homepage route
 @app.route('/')
 def index():
     return render_template("index.html")
 
-# Add Transaction
-@app.route('/add_transaction_v1', methods=['POST'])
-def add_transaction_v1():
+# Add Transaction (Manual or Automatic Mode)
+@app.route('/add_transaction', methods=["POST"])
+def add_transaction():
     form_data = request.form
+    transaction_type = form_data.get('transaction_Type')
     date = form_data.get('date')
     amount = form_data.get('amount')
     description = form_data.get('description')
     image_file = request.files.get('image')
 
     image_path = None
-    if image_file:
+
+    # Automatic Mode: Extract details using OCR if an image is provided
+    if transaction_type == "automatic" and image_file:
         filename = secure_filename(image_file.filename)
         image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         image_file.save(image_path)
 
+        # Perform OCR on the uploaded image
         extracted_text = pytesseract.image_to_string(Image.open(image_path))
+        print("Extracted Text:", extracted_text)  # Debugging
 
-        if not date:
-            date = parse_date_from_text(extracted_text)
-        if not amount:
-            amount = parse_amount_from_text(extracted_text)
-        if not description:
-            description = parse_description_from_text(extracted_text)
+        # Parse details from extracted text
+        date = parse_date_from_text(extracted_text)
+        print("Parsed Date:", date)  # Debugging
+        amount = parse_amount_from_text(extracted_text)
+        print("Parsed Amount:", amount)  # Debugging
+        description = parse_description_from_text(extracted_text)
+        print("Parsed Description:", description)  # Debugging
 
+    # Validate input or extracted data
     if not date or not amount or not description:
+        print("Error: Missing data - Date:", date, "Amount:", amount, "Description:", description)  # Debugging
         return jsonify({"error": "Insufficient data to save transaction"}), 400
-    
-    with sqlite3.connect("transactions.db") as conn:
-        conn.execute("""
-            INSERT INTO transactions (date, amount, description, image_path)
-            VALUES (?, ?, ?, ?)
-        """, (date, amount, description, image_path))
-    return jsonify({"message": "Transaction added successfully!"})
 
-@app.route('/add_transaction', methods=["POST"])
-def add_transaction():
-    form_data = request.form
-    transaction_Type, date, amount, description = form_data.get('transaction_Type'), form_data.get('date'), form_data.get('amount'), form_data.get('description')
-
-    print(transaction_Type, date, amount, description)
-
+    # Insert transaction into the database
     with sqlite3.connect("transactions_v2.db") as conn:
         conn.execute("""
-            INSERT INTO transactions (date, amount, description, image_path, transaction_Type)
+            INSERT INTO transactions (date, amount, description, image_path, transaction_type)
             VALUES (?, ?, ?, ?, ?)
-        """, (date, amount, description, "NO_IMAGE", transaction_Type))
+        """, (date, amount, description, image_path or "NO_IMAGE", transaction_type))
 
     return jsonify({"message": "Transaction added successfully!"})
-
 
 # Export to Excel
 @app.route('/export', methods=['GET'])
@@ -126,5 +126,6 @@ def get_transactions():
         rows = cursor.fetchall()
     return jsonify(rows)
 
+# Initialize the app
 if __name__ == "__main__":
     app.run(debug=True)

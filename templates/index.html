@@ -3,12 +3,13 @@
 <head>
     <title>BillTracker</title>
     <script>
-        // JavaScript function to toggle visibility of form sections
+        // JavaScript function to toggle visibility of form sections and export button
         function toggleForm(option) {
             // Get the form sections
             const manualSection = document.getElementById('manual-section');
             const automaticSection = document.getElementById('automatic-section');
-            
+            const exportButton = document.getElementById('export-button');
+
             // Show or hide sections based on the selected option
             if (option === 'automatic') {
                 manualSection.style.display = 'none';
@@ -17,6 +18,9 @@
                 automaticSection.style.display = 'none';
                 manualSection.style.display = 'block';
             }
+
+            // Display the export button once a mode is selected
+            exportButton.style.display = 'block';
         }
     </script>
 </head>
@@ -38,7 +42,7 @@
         <h3>Manual Transaction</h3>
         <label>Date:</label>
         <input type="date" name="date" required><br>
-        <label>transactionType:</label>
+        <label>Transaction Type:</label>
         <select name="transaction_Type" required>
             <option value="">Select</option>
             <option value="credit">Credit</option>
@@ -59,8 +63,8 @@
         <button type="submit">Add Transaction</button>
     </form>
 
-    <!-- Common Export to Excel Button -->
-    <div>
+    <!-- Common Export to Excel Button (Initially hidden) -->
+    <div id="export-button" style="display: none;">
         <form action="/export" method="get">
             <button type="submit">Export to Excel</button>
         </form>
