@@ -2,21 +2,68 @@
 <html>
 <head>
     <title>BillTracker</title>
+    <script>
+        // JavaScript function to toggle visibility of form sections
+        function toggleForm(option) {
+            // Get the form sections
+            const manualSection = document.getElementById('manual-section');
+            const automaticSection = document.getElementById('automatic-section');
+            
+            // Show or hide sections based on the selected option
+            if (option === 'automatic') {
+                manualSection.style.display = 'none';
+                automaticSection.style.display = 'block';
+            } else if (option === 'manual') {
+                automaticSection.style.display = 'none';
+                manualSection.style.display = 'block';
+            }
+        }
+    </script>
 </head>
 <body>
     <h1>BillTracker</h1>
-    <form action="/add_transaction" method="post" enctype="multipart/form-data">
+
+    <!-- Radio buttons to choose between Automatic and Manual -->
+    <label>
+        <input type="radio" name="mode" value="automatic" onclick="toggleForm('automatic')" required>
+        Automatic
+    </label>
+    <label>
+        <input type="radio" name="mode" value="manual" onclick="toggleForm('manual')">
+        Manual
+    </label>
+
+    <!-- Form for Manual Mode -->
+    <form id="manual-section" action="/add_transaction" method="post" enctype="multipart/form-data" style="display: none;">
+        <h3>Manual Transaction</h3>
         <label>Date:</label>
         <input type="date" name="date" required><br>
+        <label>transactionType:</label>
+        <select name="transaction_Type" required>
+            <option value="">Select</option>
+            <option value="credit">Credit</option>
+            <option value="debit">Debit</option>
+        </select><br>
         <label>Amount:</label>
         <input type="number" name="amount" step="0.01" required><br>
         <label>Description:</label>
         <input type="text" name="description" required><br>
-        <label>Attach Bill (optional):</label>
-        <input type="file" name="image"><br>
         <button type="submit">Add Transaction</button>
     </form>
 
-    <a href="/export">Export to Excel</a>
+    <!-- Form for Automatic Mode -->
+    <form id="automatic-section" action="/add_transaction" method="post" enctype="multipart/form-data" style="display: none;">
+        <h3>Automatic Transaction</h3>
+        <label>Attach Bill:</label>
+        <input type="file" name="image" required><br>
+        <button type="submit">Add Transaction</button>
+    </form>
+
+    <!-- Common Export to Excel Button -->
+    <div>
+        <form action="/export" method="get">
+            <button type="submit">Export to Excel</button>
+        </form>
+    </div>
 </body>
 </html>
