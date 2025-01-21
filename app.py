@@ -9,7 +9,7 @@ import re
 from datetime import datetime
 
 # Configure Tesseract OCR executable path
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = r'C:\Users\umeshwarrao.m\AppData\Local\Programs\Tesseract-OCR'
 
 # Helper function to parse date from text
 def parse_date_from_text(text):
@@ -69,11 +69,11 @@ def index():
 @app.route('/add_transaction', methods=["POST"])
 def add_transaction():
     form_data = request.form
-    transaction_type = form_data.get('transaction_Type')
     date = form_data.get('date')
     amount = form_data.get('amount')
     description = form_data.get('description')
     image_file = request.files.get('image')
+    transaction_type = form_data.get('transaction_Type')
 
     image_path = None
 
@@ -103,9 +103,9 @@ def add_transaction():
     # Insert transaction into the database
     with sqlite3.connect("transactions_v2.db") as conn:
         conn.execute("""
-            INSERT INTO transactions (date, amount, description, image_path, transaction_type)
-            VALUES (?, ?, ?, ?, ?)
-        """, (date, amount, description, image_path or "NO_IMAGE", transaction_type))
+            INSERT INTO transactions (date, amount, description, transaction_type)
+            VALUES (?, ?, ?, ?)
+        """, (date, amount, description, transaction_type))
 
     return jsonify({"message": "Transaction added successfully!"})
 
