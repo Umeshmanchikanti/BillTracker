@@ -7,6 +7,12 @@ from werkzeug.utils import secure_filename
 import os
 import re
 from datetime import datetime
+import google.generativeai as genai
+
+google_api_key= "AIzaSyByRFbYDBZul90lOQrelAQEMHoQ6OYPUHA"
+
+genai.configure(api_key=google_api_key)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # Configure Tesseract OCR executable path
 pytesseract.pytesseract.tesseract_cmd = r'C:\Users\umeshwarrao.m\AppData\Local\Programs\Tesseract-OCR'
@@ -39,6 +45,41 @@ def parse_description_from_text(text):
         if len(line.strip()) > 5:  # Use a heuristic to find a meaningful description
             return line.strip()
     return "No description found"
+
+# Function to extract bill information using generative AI
+def extract_bill_information(image_path):
+    """Extracts bill amount and purchase details from an image using OCR and generative AI.
+
+    Args:
+        image_path: Path to the image file containing the bill.
+
+    Returns:
+        A dictionary containing the extracted information, or None if extraction fails.
+    """
+
+    try:
+        # Open the image using PIL
+        with Image.open(image_path) as img: 
+            # Use a with statement to ensure proper image closing
+            # Replace with your actual generative AI model call (assuming Gemini model)
+            # Adapt the prompt and response processing based on your model's capabilities
+            prompt = "This is a credit card bill. Extract the bill amount and the purchase that's made as part of the bill"
+            # Call your generative AI model to process the image and prompt
+            # Replace the following line with your model-specific call
+            gemini_res = model.generate_content([prompt, img]) 
+            # Process the response from the generative AI model
+            # Extract relevant information (amount, purchase details) from gemini_res.text
+            # ... (Your model-specific response processing logic here) ... 
+
+            # Example: Assuming gemini_res.text contains the extracted information
+            extracted_amount = parse_amount_from_text(gemini_res.text)
+            extracted_purchase_details = parse_description_from_text(gemini_res.text)
+
+            # Return the extracted information
+            return {"amount": extracted_amount, "purchase_details": extracted_purchase_details}
+    except Exception as e:
+        print(f"Error extracting information from image: {e}")
+        return None
 
 # Flask app initialization
 app = Flask(__name__)
@@ -77,35 +118,61 @@ def add_transaction():
 
     image_path = None
 
-    # Automatic Mode: Extract details using OCR if an image is provided
+    # Check if an image file was uploaded
+    if image_file is None:
+        if transaction_type == "automatic":
+            return jsonify({"error": "No image file uploaded for automatic mode"}), 400
+        # Proceed with manual entry if image_file is None and transaction_type is not "automatic"
+        print("No image file uploaded (manual mode)")
+    else:
+        try:
+            filename = secure_filename(image_file.filename)
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            image_file.save(image_path)
+        except Exception as e:
+            print(f"Error saving image: {e}")
+            return jsonify({"error": "Error saving uploaded image"}), 500
+
+    # Automatic Mode: Extract details using OCR and generative AI if an image is provided
     if transaction_type == "automatic" and image_file:
         filename = secure_filename(image_file.filename)
-        image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        image_path = os.path.join(app.config['UPLOADS_FOLDER'], filename)
         image_file.save(image_path)
 
-        # Perform OCR on the uploaded image
+        print(f"Image path: {image_path}")  # Print image path for debugging
+
+        # Extract information using generative AI
+        extracted_info = extract_bill_information(image_path)
+
+        if extracted_info:
+            amount = extracted_info['amount']
+            description = extracted_info['purchase_details']
+
+    # Perform OCR on the uploaded image (if necessary)
+    if not amount or not description:
         extracted_text = pytesseract.image_to_string(Image.open(image_path))
         print("Extracted Text:", extracted_text)  # Debugging
 
         # Parse details from extracted text
-        date = parse_date_from_text(extracted_text)
+        date = parse_date_from_text(extracted_text) or date
         print("Parsed Date:", date)  # Debugging
-        amount = parse_amount_from_text(extracted_text)
+        amount = parse_amount_from_text(extracted_text) or amount
         print("Parsed Amount:", amount)  # Debugging
-        description = parse_description_from_text(extracted_text)
+        description = parse_description_from_text(extracted_text) or description
         print("Parsed Description:", description)  # Debugging
+        transaction_type = transaction_type or "debit"  # Default to "debit" if not provided
 
     # Validate input or extracted data
-    if not date or not amount or not description:
-        print("Error: Missing data - Date:", date, "Amount:", amount, "Description:", description)  # Debugging
+    if not date or not amount or not description or not transaction_type:
+        print("Error: Missing data - Date:", date, "Amount:", amount, "Description:", description, "Transaction Type:", transaction_type)  # Debugging
         return jsonify({"error": "Insufficient data to save transaction"}), 400
 
     # Insert transaction into the database
     with sqlite3.connect("transactions_v2.db") as conn:
         conn.execute("""
-            INSERT INTO transactions (date, amount, description, transaction_type)
-            VALUES (?, ?, ?, ?)
-        """, (date, amount, description, transaction_type))
+            INSERT INTO transactions (date, amount, description, image_path, transaction_type)
+            VALUES (?, ?, ?, ?, ?)
+        """, (date, amount, description, image_path, transaction_type))
 
     return jsonify({"message": "Transaction added successfully!"})
 
