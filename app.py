@@ -60,18 +60,11 @@ def extract_bill_information(image_path):
     try:
         # Open the image using PIL
         with Image.open(image_path) as img: 
-            # Use a with statement to ensure proper image closing
-            # Replace with your actual generative AI model call (assuming Gemini model)
-            # Adapt the prompt and response processing based on your model's capabilities
+            
             prompt = "This is a credit card bill. Extract the bill amount and the purchase that's made as part of the bill"
-            # Call your generative AI model to process the image and prompt
-            # Replace the following line with your model-specific call
+            
             gemini_res = model.generate_content([prompt, img]) 
-            # Process the response from the generative AI model
-            # Extract relevant information (amount, purchase details) from gemini_res.text
-            # ... (Your model-specific response processing logic here) ... 
-
-            # Example: Assuming gemini_res.text contains the extracted information
+            
             extracted_amount = parse_amount_from_text(gemini_res.text)
             extracted_purchase_details = parse_description_from_text(gemini_res.text)
 
